@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 PORT = int(os.environ.get('PORT', 8080))
 
-# Глобальные переменные
+# Глоб3альные переменные
 sio1 = None
 sio2 = None
 token1 = ""
