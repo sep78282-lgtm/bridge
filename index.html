@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Nekto Bridge</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            font-family: monospace;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .card {
+            background: rgba(0,0,0,0.85);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border: 1px solid #a855f7;
+        }
+        h2 {
+            color: #a855f7;
+            margin-bottom: 15px;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            background: black;
+            border: 1px solid #a855f7;
+            border-radius: 8px;
+            color: #0f0;
+            font-family: monospace;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 12px 24px;
+            background: linear-gradient(90deg, #7c3aed, #a855f7);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .console {
+            background: black;
+            border-radius: 10px;
+            padding: 15px;
+            height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            border: 1px solid #333;
+        }
+        .log { padding: 4px 0; color: #0f0; border-bottom: 1px solid #111; }
+        .log-error { color: #f00; }
+        .log-info { color: #0af; }
+        .status {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 10px;
+            font-size: 11px;
+        }
+        .online { background: #0f02; color: #0f0; border: 1px solid #0f0; }
+        .offline { background: #f002; color: #f00; border: 1px solid #f00; }
+        .flex { display: flex; justify-content: space-between; align-items: center; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="card">
+        <div class="flex">
+            <h2>🔗 NEKTO BRIDGE</h2>
+            <span id="status" class="status offline">⚫ OFFLINE</span>
+        </div>
+        <p style="color:#888;">WebSocket bridge for nekto.me</p>
+    </div>
+    
+    <div class="card">
+        <h2>🎭 TOKEN 1</h2>
+        <input type="text" id="token1" placeholder="Paste token here">
+        <h2>🎭 TOKEN 2</h2>
+        <input type="text" id="token2" placeholder="Paste token here">
+        <div style="margin-top: 20px;">
+            <button id="startBtn">🚀 START</button>
+            <button id="stopBtn">⏹️ STOP</button>
+            <button id="clearBtn">🗑️ CLEAR</button>
+        </div>
+    </div>
+    
+    <div class="card">
+        <h2>📡 LOG</h2>
+        <div class="console" id="console">
+            <div class="log log-info">[System] Ready</div>
+            <div class="log log-info">[Instructions] Paste tokens and click START</div>
+            <div class="log log-info">[How to get token] Open nekto.me/chat → F12 → Console → JSON.parse(localStorage.getItem("storage_v2"))["user"]["authToken"]</div>
+        </div>
+    </div>
+</div>
+
+<script>
+let ws = null;
+
+function addLog(msg, type='info') {
+    const consoleDiv = document.getElementById('console');
+    const logDiv = document.createElement('div');
+    logDiv.className = `log log-${type}`;
+    logDiv.innerHTML = `[${new Date().toLocaleTimeString()}] ${msg}`;
+    consoleDiv.appendChild(logDiv);
+    consoleDiv.scrollTop = consoleDiv.scrollHeight;
+}
+
+function start() {
+    const token1 = document.getElementById('token1').value.trim();
+    const token2 = document.getElementById('token2').value.trim();
+    
+    if (!token1 || !token2) {
+        addLog('❌ Enter both tokens', 'error');
+        return;
+    }
+    
+    const wsUrl = `wss://${window.location.host}/ws`;
+    ws = new WebSocket(wsUrl);
+    
+    ws.onopen = () => {
+        addLog('✅ Connected to server', 'info');
+        ws.send(JSON.stringify({
+            action: 'connect',
+            token1: token1,
+            token2: token2
+        }));
+        document.getElementById('status').innerHTML = '🟢 ONLINE';
+        document.getElementById('status').className = 'status online';
+    };
+    
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'log') {
+            addLog(data.message, 'info');
+        } else if (data.type === 'message') {
+            addLog(`📨 ${data.from}: ${data.data}`, 'success');
+        }
+    };
+    
+    ws.onerror = () => addLog('❌ WebSocket error', 'error');
+    ws.onclose = () => {
+        addLog('⚠️ Connection closed', 'warning');
+        document.getElementById('status').innerHTML = '⚫ OFFLINE';
+        document.getElementById('status').className = 'status offline';
+    };
+}
+
+function stop() {
+    if (ws) {
+        ws.send(JSON.stringify({ action: 'disconnect' }));
+        ws.close();
+    }
+    addLog('⏹️ Bridge stopped', 'info');
+}
+
+document.getElementById('startBtn').addEventListener('click', start);
+document.getElementById('stopBtn').addEventListener('click', stop);
+document.getElementById('clearBtn').addEventListener('click', () => {
+    document.getElementById('console').innerHTML = '';
+    addLog('Console cleared', 'info');
+});
+</script>
+</body>
+</html>
