@@ -1,4 +1,5 @@
-aiohttp
-aiohttp-cors
-python-socketio
-websockets
+aiohttp>=3.8.0
+aiohttp-cors>=0.7.0
+python-socketio>=5.9.0
+websockets>=12.0
+certifi>=2023.0.0
