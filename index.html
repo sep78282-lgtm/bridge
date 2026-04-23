@@ -52,60 +52,28 @@
 </div>
 
 <script>
-let ws = null;
-
-function addLog(msg, type='info') {
-    const consoleDiv = document.getElementById('console');
-    const logDiv = document.createElement('div');
-    logDiv.className = `log log-${type}`;
-    logDiv.innerHTML = `[${new Date().toLocaleTimeString()}] ${msg}`;
-    consoleDiv.appendChild(logDiv);
-    consoleDiv.scrollTop = consoleDiv.scrollHeight;
-}
-
 function start() {
     const token1 = document.getElementById('token1').value.trim();
     const token2 = document.getElementById('token2').value.trim();
+    if (!token1 || !token2) { addLog('❌ Enter tokens', 'error'); return; }
     
-    if (!token1 || !token2) {
-        addLog('❌ Enter both tokens', 'error');
-        return;
-    }
-    
-    const wsUrl = `wss://${window.location.host}/ws`;
+    const wsUrl = `wss://${window.location.host}/bridge`;
     ws = new WebSocket(wsUrl);
-    
     ws.onopen = () => {
-        addLog('✅ Connected to server', 'info');
+        addLog('✅ Connected', 'info');
         ws.send(JSON.stringify({ action: 'connect', token1: token1, token2: token2 }));
         document.getElementById('status').innerHTML = '🟢 ONLINE';
-        document.getElementById('status').className = 'status online';
     };
-    
     ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
         if (data.type === 'log') addLog(data.message, 'info');
         else if (data.type === 'message') addLog(`${data.from}: ${data.data}`, 'success');
     };
-    
     ws.onclose = () => {
-        addLog('⚠️ Connection closed', 'warning');
+        addLog('⚠️ Disconnected', 'warning');
         document.getElementById('status').innerHTML = '⚫ OFFLINE';
-        document.getElementById('status').className = 'status offline';
     };
 }
-
-function stop() {
-    if (ws) ws.close();
-    addLog('⏹️ Bridge stopped', 'info');
-}
-
-document.getElementById('startBtn').onclick = start;
-document.getElementById('stopBtn').onclick = stop;
-document.getElementById('clearBtn').onclick = () => {
-    document.getElementById('console').innerHTML = '';
-    addLog('Console cleared', 'info');
-};
 </script>
 </body>
 </html>
