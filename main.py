@@ -14,32 +14,31 @@ sio1 = None
 sio2 = None
 token1 = ""
 token2 = ""
-websocket_clients = []
 
 async def websocket_handler(request):
     ws = web.WebSocketResponse()
     await ws.prepare(request)
-    websocket_clients.append(ws)
-    logger.info("Клиент подключен")
+    logger.info("Client connected")
     
     try:
         async for msg in ws:
             if msg.type == web.WSMsgType.TEXT:
                 data = json.loads(msg.data)
                 if data['action'] == 'connect':
-                    global token1, token2
+                    global token1, token2, sio1, sio2
                     token1 = data['token1']
                     token2 = data['token2']
-                    await ws.send_json({'type': 'log', 'message': '✅ Токены получены'})
+                    await ws.send_json({'type': 'log', 'message': '✅ Tokens received'})
                     asyncio.create_task(run_bridge(ws))
                 elif data['action'] == 'disconnect':
                     if sio1:
                         await sio1.disconnect()
                     if sio2:
                         await sio2.disconnect()
-                    await ws.send_json({'type': 'log', 'message': '⏹️ Мост остановлен'})
+                    await ws.send_json({'type': 'log', 'message': '⏹️ Bridge stopped'})
     finally:
-        websocket_clients.remove(ws)
+        pass
+    
     return ws
 
 async def run_bridge(ws):
@@ -66,12 +65,12 @@ async def run_bridge(ws):
     
     @sio1.on('connect')
     async def on_connect1():
-        await ws.send_json({'type': 'log', 'message': '✅ Клиент #1 подключен'})
+        await ws.send_json({'type': 'log', 'message': '✅ Client 1 connected'})
         await sio1.emit('auth', {'token': token1})
     
     @sio2.on('connect')
     async def on_connect2():
-        await ws.send_json({'type': 'log', 'message': '✅ Клиент #2 подключен'})
+        await ws.send_json({'type': 'log', 'message': '✅ Client 2 connected'})
         await sio2.emit('auth', {'token': token2})
     
     try:
@@ -79,17 +78,21 @@ async def run_bridge(ws):
             sio1.connect('https://nekto.me', transports=['websocket']),
             sio2.connect('https://nekto.me', transports=['websocket'])
         )
-        await ws.send_json({'type': 'log', 'message': '🎯 МОСТ АКТИВЕН!'})
+        await ws.send_json({'type': 'log', 'message': '🎯 BRIDGE ACTIVE!'})
         await asyncio.Event().wait()
     except Exception as e:
-        await ws.send_json({'type': 'log', 'message': f'❌ Ошибка: {e}'})
+        logger.error(f"Bridge error: {e}")
+        await ws.send_json({'type': 'log', 'message': f'❌ Error: {str(e)}'})
 
 async def health_check(request):
     return web.Response(text='OK')
 
 async def index(request):
-    with open('index.html', 'r') as f:
-        return web.Response(text=f.read(), content_type='text/html')
+    try:
+        with open('index.html', 'r') as f:
+            return web.Response(text=f.read(), content_type='text/html')
+    except:
+        return web.Response(text='<h1>Nekto Bridge</h1><script>alert("index.html not found");</script>', content_type='text/html')
 
 app = web.Application()
 app.router.add_get('/', index)
